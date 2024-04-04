@@ -1,0 +1,141 @@
+# targetSystem -- Target OS for this deployment (possible values: linux, windows)
+targetSystem: "linux"
+
+datadog:
+  # datadog.apiKeyExistingSecret -- Use existing Secret which stores API key instead of creating a new one. The value should be set with the `api-key` key inside the secret.
+
+  ## If set, this parameter takes precedence over "apiKey".
+  apiKeyExistingSecret:  datadog-secret
+
+  # datadog.appKeyExistingSecret -- Use existing Secret which stores APP key instead of creating a new one. The value should be set with the `app-key` key inside the secret.
+
+  ## If set, this parameter takes precedence over "appKey".
+  appKeyExistingSecret:  datadog-secret
+
+  env:
+  - name: DD_PROXY_HTTPS
+    value: 'http://proxy-se.ddc.teliasonera.net:8080'
+  - name: DD_PROXY_HTTP
+    value: 'http://proxy-se.ddc.teliasonera.net:8080'
+  - name: DD_PROXY_NO_PROXY
+    value: '192.168.0.0/16 10.30.0.0/16 172.16.0.0/16'
+  - name: DD_CONTAINER_EXCLUDE
+    value: 'name:.*'
+  - name: DD_CONTAINER_INCLUDE
+    value: 'kube_namespace:default'
+  - name: DD_LOGS_CONFIG_FORCE_USE_HTTP
+    value: true
+
+  # datadog.tags -- List of static tags to attach to every metric, event and service check collected by this Agent.
+
+  ## Learn more about tagging: https://docs.datadoghq.com/tagging/
+  tags:
+  - "h2id:Hid100006489"
+  - "business-unit:cps"
+  - "billing-code:P1-08370-00016"
+  - "env:prod-on-prem"
+
+  # datadog.clusterName -- Set a unique cluster name to allow scoping hosts and Cluster Checks easily
+
+  ## The name must be unique and must be dot-separated tokens with the following restrictions:
+  ## * Lowercase letters, numbers, and hyphens only.
+  ## * Must start with a letter.
+  ## * Must end with a number or a letter.
+  ## * Overall length should not be higher than 80 characters.
+  ## Compared to the rules of GKE, dots are allowed whereas they are not allowed on GKE:
+  ## https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1beta1/projects.locations.clusters#Cluster.FIELDS.name
+  
+  clusterName: hby-mt-anthos-ciam-prod
+
+  # datadog.site -- The site of the Datadog intake to send Agent data to.
+  # (documentation: https://docs.datadoghq.com/getting_started/site/)
+
+  ## Set to 'datadoghq.com' to send data to the US1 site (default).
+  ## Set to 'datadoghq.eu' to send data to the EU site.
+  ## Set to 'us3.datadoghq.com' to send data to the US3 site.
+  ## Set to 'us5.datadoghq.com' to send data to the US5 site.
+  ## Set to 'ddog-gov.com' to send data to the US1-FED site.
+  site: 'datadoghq.eu'
+
+  # datadog.logLevel -- Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, off
+  logLevel: info
+
+  ## Enable logs agent and provide custom configs
+  logs:
+    # datadog.logs.enabled -- Enables this to activate Datadog Agent log collection
+
+    ## ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+    enabled: true
+
+    ## ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+    containerCollectAll: true
+  
+  logs_config:
+    processing_rules:
+      - type: mask_sequences
+        name: redact_key_match_letters_numbers_spaces_unders
+        replace_placeholder: "\"password\":\"[HIDDEN_PASSWORD]\""
+        pattern: (?:\"password\":\"[A-Za-z0-9\s_]*[A-Za-z0-9][A-Za-z0-9\s_]\")
+
+  ## Enable apm agent and provide custom configs
+  apm:
+    # datadog.apm.portEnabled -- Enable APM over TCP communication (port 8126 by default)
+    ## ref: https://docs.datadoghq.com/agent/kubernetes/apm/
+    portEnabled: true
+  
+  ## Enable Network Performance monitoring
+  networkMonitoring:
+    enabled: true
+
+  ## The Kubernetes State Metrics Core
+
+  ## ref: https://docs.datadoghq.com/integrations/kubernetes_state_core/?tab=helm
+  kubeStateMetricsCore:
+    enabled: true
+  
+## This is the Datadog Cluster Agent implementation that handles cluster-wide
+## metrics more cleanly, separates concerns for better rbac, and implements
+## the external metrics API so you can autoscale HPAs based on datadog metrics
+## ref: https://docs.datadoghq.com/agent/kubernetes/cluster/
+clusterAgent:
+  # clusterAgent.enabled -- Set this to false to disable Datadog Cluster Agent
+  enabled: true
+
+  # clusterAgent.replicas -- Specify the of cluster agent replicas, if > 1 it allow the cluster agent to work in HA mode.
+  replicas: 2
+
+  admissionController:
+    enabled: false
+
+    ## @param mutateUnlabelled - boolean - optional
+    ## Enable injecting config without having the pod label:
+    ## admission.datadoghq.com/enabled="true"
+    #
+    mutateUnlabelled: true
+
+  env:
+  - name: DD_PROXY_HTTPS
+    value: 'http://proxy-se.ddc.teliasonera.net:8080'
+  - name: DD_PROXY_HTTP
+    value: 'http://proxy-se.ddc.teliasonera.net:8080'
+  - name: DD_PROXY_NO_PROXY
+    value: '192.168.0.0/16 10.30.0.0/16 172.16.0.0/16'
+
+agents:
+  # agents.enabled -- You should keep Datadog DaemonSet enabled!
+
+  ## The exceptional case could be a situation when you need to run
+  ## single Datadog pod per every namespace, but you do not need to
+  ## re-create a DaemonSet for every non-default namespace install.
+  ## Note: StatsD and DogStatsD work over UDP, so you may not
+  ## get guaranteed delivery of the metrics in Datadog-per-namespace setup!
+  enabled: true
+
+  # agents.useConfigMap -- Configures a configmap to provide the agent configuration. Use this in combination with the `agents.customAgentConfig` parameter.
+  useConfigMap:  true
+
+  ## ref: https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
+  ## ref: https://github.com/DataDog/datadog-agent/blob/main/pkg/config/config_template.yaml
+  ## Note the `agents.useConfigMap` needs to be set to `true` for this parameter to be taken into account.
+  customAgentConfig:
+    no_proxy_nonexact_match: true

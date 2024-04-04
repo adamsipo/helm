@@ -1,0 +1,61 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: gateway-response-modify-headers
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: MERGE
+      value:
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+          server_header_transformation: PASS_THROUGH
+  - applyTo: ROUTE_CONFIGURATION
+    match:
+      context: GATEWAY
+    patch:
+      operation: MERGE
+      value:
+        response_headers_to_remove:
+        - "x-envoy-upstream-service-time"
+        - "server"
+        response_headers_to_add:
+          - header:
+              key: 'Strict-Transport-Security'
+              value: 'max-age=31536000; includeSubDomains'
+            append: false
+          - header:
+              key: 'X-Frame-Options'
+              value: 'SAMEORIGIN'
+            append: false
+          - header:
+              key: 'X-Content-Type-Options'
+              value: 'nosniff'
+            append: false
+          - header:
+              key: 'Referrer-Policy'
+              value: 'origin'
+            append: false
+          - header:
+              key: 'Access-Control-Request-Method'
+              value: '*'
+            append: false
+          - header:
+              key: 'Access-Control-Allow-Origin'
+              value: {{ .Values.istio.envoy_filter.domain | quote }}
+            append: false
+          - header:
+              key: 'Access-Control-Allow-Credentials'
+              value: 'true'
+            append: false

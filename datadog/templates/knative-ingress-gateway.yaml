@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  labels:
+  name: {{ .Values.knative.gateway.name }}
+  namespace: knative-serving
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        name: https
+        number: 443
+        protocol: HTTPS
+      hosts:
+{{ toYaml .Values.knative.gateway.hosts | indent 8 }}
+      tls:
+        credentialName: tls-cert
+        maxProtocolVersion: TLSV1_3
+        minProtocolVersion: TLSV1_2
+        mode: SIMPLE

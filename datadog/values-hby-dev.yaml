@@ -1,0 +1,89 @@
+datadog:
+  name: datadog
+  namespace: datadog
+  site: datadoghq.eu
+  tags:
+    - "h2id:Hid100006489"
+    - "business-unit:cps"
+    - "billing-code:P1-08370-00016"
+    - "env:dev-on-prem"
+  apiKeyExistingSecret:  datadog-secret
+  appKeyExistingSecret:  datadog-secret
+  clusterAgent:
+    env:
+    - name: DD_PROXY_HTTPS
+      value: 'http://proxy-se.ddc.teliasonera.net:8080'
+    - name: DD_PROXY_HTTP
+      value: 'http://proxy-se.ddc.teliasonera.net:8080'
+    - name: DD_PROXY_NO_PROXY
+      value: '192.168.0.0/16 10.30.0.0/16 172.16.0.0/16'
+    - name: DD_CONTAINER_EXCLUDE
+      value: 'name:.*'
+    - name: DD_CONTAINER_INCLUDE
+      value: 'kube_namespace:default'
+    - name: DD_LOGS_CONFIG_FORCE_USE_HTTP
+      value: 'true'
+    - name: DD_CLUSTER_NAME
+      value: 'hby-mt-anthos-ciam-dev'
+    - name: DD_LOG_LEVEL
+      value: 'info'
+  nodeAgent:
+    env:
+    - name: DD_PROXY_HTTPS
+      value: 'http://proxy-se.ddc.teliasonera.net:8080'
+    - name: DD_PROXY_HTTP
+      value: 'http://proxy-se.ddc.teliasonera.net:8080'
+    - name: DD_PROXY_NO_PROXY
+      value: '192.168.0.0/16 10.30.0.0/16 172.16.0.0/16'
+    - name: DD_CONTAINER_EXCLUDE
+      value: 'name:.*'
+    - name: DD_CONTAINER_INCLUDE
+      value: 'kube_namespace:default'
+    - name: DD_LOGS_CONFIG_FORCE_USE_HTTP
+      value: 'true'
+    - name: DD_CLUSTER_NAME
+      value: 'hby-mt-anthos-ciam-dev'
+    - name: DD_LOG_LEVEL
+      value: 'info'
+
+knative:
+  gateway:
+    name: knative-ciam-ingress-gateway
+    hosts:
+      - '*'
+      - '*.dev.se.identity.teliacompany.net'
+      - dev.se.identity.teliacompany.net
+
+istio:
+  envoy_filter:
+    domain: https://test.se.accounts.teliacompany.com
+  virtualService:
+    name: service-routes
+    hosts:
+      - "dev.se.identity.teliacompany.net"
+      - "10.30.178.96"
+  routes:
+    accounts_services_route:
+      prefix: "/accounts"
+      rewriteAuthority: "dis-accounts-services.default.dev.se.identity.teliacompany.net"
+    hello_service_route:
+      prefix: "/test"
+      rewriteAuthority: "hello.default.dev.se.identity.teliacompany.net"
+    oidc_service_route:
+      prefix: "/oidc"
+      rewriteAuthority: "dis-oidc-provider.default.dev.se.identity.teliacompany.net"
+    account_service_route:
+      prefix: "/api/account"
+      rewriteAuthority: "dis-account-service.default.dev.se.identity.teliacompany.net"
+    identity_store_service_route:
+      prefix: "/api/ids/"
+      rewriteAuthority: "dis-identity-store.default.dev.se.identity.teliacompany.net"
+    saml_service_route:
+      prefix: "/saml"
+      rewriteAuthority: "dis-saml-provider.default.dev.se.identity.teliacompany.net"
+    challenge_service_route:
+      prefix: "/api/challenge/"
+      rewriteAuthority: "dis-challenge-service.default.dev.se.identity.teliacompany.net"
+    dis_cluster_healthcheck:
+      prefix: "/cluster-healthcheck"
+      rewriteAuthority: "dis-cluster-healthcheck.default.dev.se.identity.teliacompany.net"

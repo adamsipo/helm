@@ -1,0 +1,137 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: service-routes
+spec:
+  gateways:
+    - knative-serving/knative-ciam-ingress-gateway
+  hosts:
+    - dev.se.identity.teliacompany.net
+    - 10.30.178.96
+  http:
+    - name: accounts-services-route
+      match:
+        - uri:
+            prefix: {{ .Values.istio.routes.accounts_services_route.prefix | quote }}
+      rewrite:
+        authority: {{ .Values.istio.routes.accounts_services_route.rewriteAuthority }}
+      route:
+        - destination:
+            host: dis-accounts-services.default.svc.cluster.local
+            port:
+              number: 80
+      corsPolicy:
+        allowOrigins:
+          - exact: "*"
+        allowMethods:
+          - POST
+          - GET
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowCredentials: true
+        allowHeaders:
+          - Content-Type
+          - Authorization
+
+    - name: hello-service-route
+      match:
+        - uri:
+            prefix: {{ .Values.istio.routes.hello_service_route.prefix | quote }}
+      rewrite:
+        authority: {{ .Values.istio.routes.hello_service_route.rewriteAuthority }}
+      route:
+        - destination:
+            host: hello.default.svc.cluster.local
+            port:
+              number: 80
+
+    - name: oidc-service-route
+      match:
+        - uri:
+            prefix: {{ .Values.istio.routes.oidc_service_route.prefix | quote }}
+      rewrite:
+        authority: {{ .Values.istio.routes.oidc_service_route.rewriteAuthority }}
+      route:
+        - destination:
+            host: dis-oidc-provider.default.svc.cluster.local
+            port:
+              number: 80
+      corsPolicy:
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+      headers:
+        request:
+          add:
+            X-Forwarded-Host: "dev.se.identity.teliacompany.com"
+
+    - name: account-service-route
+      match:
+        - uri:
+            prefix: {{ .Values.istio.routes.account_service_route.prefix | quote }}
+      rewrite:
+        authority: {{ .Values.istio.routes.account_service_route.rewriteAuthority }}
+      route:
+        - destination:
+            host: dis-account-service.default.svc.cluster.local
+            port:
+              number: 80
+
+    - name: identity-store-service-route
+      match:
+        - uri:
+            prefix: {{ .Values.istio.routes.identity_store_service_route.prefix | quote }}
+      rewrite:
+        authority: {{ .Values.istio.routes.identity_store_service_route.rewriteAuthority }}
+      route:
+        - destination:
+            host: dis-identity-store.default.svc.cluster.local
+            port:
+              number: 80
+
+    - name: saml-service-route
+      match:
+        - uri:
+            prefix: {{ .Values.istio.routes.saml_service_route.prefix | quote }}
+      rewrite:
+        authority: {{ .Values.istio.routes.saml_service_route.rewriteAuthority }}
+      route:
+        - destination:
+            host: dis-saml-provider.default.svc.cluster.local
+            port:
+              number: 80
+      corsPolicy:
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+      headers:
+        request:
+          add:
+            X-Forwarded-Host: "dev.se.identity.teliacompany.com"
+
+    - name: challenge-service-route
+      match:
+        - uri:
+            prefix: {{ .Values.istio.routes.challenge_service_route.prefix | quote }}
+      rewrite:
+        authority: {{ .Values.istio.routes.challenge_service_route.rewriteAuthority }}
+      route:
+        - destination:
+            host: dis-challenge-service.default.svc.cluster.local
+            port:
+              number: 80
+
+    - name: dis-cluster-healthcheck
+      match:
+        - uri:
+            prefix: {{ .Values.istio.routes.dis_cluster_healthcheck.prefix | quote }}
+      rewrite:
+        authority: {{ .Values.istio.routes.dis_cluster_healthcheck.rewriteAuthority }}
+      route:
+        - destination:
+            host: dis-cluster-healthcheck.default.svc.cluster.local
+            port:
+              number: 80

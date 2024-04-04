@@ -1,0 +1,62 @@
+kind: DatadogAgent
+apiVersion: datadoghq.com/v2alpha1
+metadata:
+  name: {{ .Values.datadog.name }}
+  namespace: {{ .Values.datadog.namespace }}
+spec:
+  global:
+    site: {{ .Values.datadog.site }}
+    credentials:
+      apiSecret:
+        secretName: {{ .Values.datadog.apiKeyExistingSecret }}
+        keyName: api-key
+      appSecret:
+        secretName: {{ .Values.datadog.appKeyExistingSecret }}
+        keyName: app-key
+    tags:
+      {{- range .Values.datadog.tags }}
+      - "{{ . }}"
+      {{- end }}
+  override:
+    clusterAgent:
+      env:
+      {{- range .Values.datadog.clusterAgent.env }}
+      - name: {{ .name }}
+        value: {{ .value | quote }}
+      {{- end }}
+      image:
+        name: gcr.io/datadoghq/cluster-agent:latest
+    nodeAgent:
+      env:
+      {{- range .Values.datadog.nodeAgent.env }}
+      - name: {{ .name }}
+        value: {{ .value | quote }}
+      {{- end }}
+      image:
+        name: gcr.io/datadoghq/agent:latest
+      extraConfd:
+        configDataMap:
+          ntp.yaml: |-
+            init_config:
+            instances:
+              -
+                hosts:
+                  - 81.224.166.9
+                  - 81.224.166.10
+                  - 81.224.166.11
+                  - 81.224.166.148
+                  - 81.224.166.149
+                  - 81.224.166.150
+                  - 81.224.166.151
+                  - 10.32.19.223
+                  - 10.32.19.224
+                  - 81.236.32.62
+  features:
+    apm:
+      enabled: true
+      hostPortConfig:
+        enabled: true
+        hostPort: 8126 # default
+    logCollection:
+      enabled: true
+      containerCollectAll: true
