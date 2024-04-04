@@ -1,0 +1,316 @@
+---
+# Source: knative/templates/datadog-agent.yaml
+kind: DatadogAgent
+apiVersion: datadoghq.com/v2alpha1
+metadata:
+  name: datadog
+  namespace: datadog
+spec:
+  global:
+    site: datadoghq.eu
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    tags:
+      - "h2id:Hid100006489"
+      - "business-unit:cps"
+      - "billing-code:P1-08370-00016"
+      - "env:dev-on-prem"
+  override:
+    clusterAgent:
+      env:
+      - name: DD_PROXY_HTTPS
+        value: "http://proxy-se.ddc.teliasonera.net:8080"
+      - name: DD_PROXY_HTTP
+        value: "http://proxy-se.ddc.teliasonera.net:8080"
+      - name: DD_PROXY_NO_PROXY
+        value: "192.168.0.0/16 10.30.0.0/16 172.16.0.0/16"
+      - name: DD_CONTAINER_EXCLUDE
+        value: "name:.*"
+      - name: DD_CONTAINER_INCLUDE
+        value: "kube_namespace:default"
+      - name: DD_LOGS_CONFIG_FORCE_USE_HTTP
+        value: "true"
+      - name: DD_CLUSTER_NAME
+        value: "hby-mt-anthos-ciam-dev"
+      - name: DD_LOG_LEVEL
+        value: "info"
+      image:
+        name: gcr.io/datadoghq/cluster-agent:latest
+    nodeAgent:
+      env:
+      - name: DD_PROXY_HTTPS
+        value: "http://proxy-se.ddc.teliasonera.net:8080"
+      - name: DD_PROXY_HTTP
+        value: "http://proxy-se.ddc.teliasonera.net:8080"
+      - name: DD_PROXY_NO_PROXY
+        value: "192.168.0.0/16 10.30.0.0/16 172.16.0.0/16"
+      - name: DD_CONTAINER_EXCLUDE
+        value: "name:.*"
+      - name: DD_CONTAINER_INCLUDE
+        value: "kube_namespace:default"
+      - name: DD_LOGS_CONFIG_FORCE_USE_HTTP
+        value: "true"
+      - name: DD_CLUSTER_NAME
+        value: "hby-mt-anthos-ciam-dev"
+      - name: DD_LOG_LEVEL
+        value: "info"
+      image:
+        name: gcr.io/datadoghq/agent:latest
+      extraConfd:
+        configDataMap:
+          ntp.yaml: |-
+            init_config:
+            instances:
+              -
+                hosts:
+                  - 81.224.166.9
+                  - 81.224.166.10
+                  - 81.224.166.11
+                  - 81.224.166.148
+                  - 81.224.166.149
+                  - 81.224.166.150
+                  - 81.224.166.151
+                  - 10.32.19.223
+                  - 10.32.19.224
+                  - 81.236.32.62
+  features:
+    apm:
+      enabled: true
+      hostPortConfig:
+        enabled: true
+        hostPort: 8126 # default
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+---
+# Source: knative/templates/istio-modifyresponseheaders.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: gateway-response-modify-headers
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: MERGE
+      value:
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+          server_header_transformation: PASS_THROUGH
+  - applyTo: ROUTE_CONFIGURATION
+    match:
+      context: GATEWAY
+    patch:
+      operation: MERGE
+      value:
+        response_headers_to_remove:
+        - "x-envoy-upstream-service-time"
+        - "server"
+        response_headers_to_add:
+          - header:
+              key: 'Strict-Transport-Security'
+              value: 'max-age=31536000; includeSubDomains'
+            append: false
+          - header:
+              key: 'X-Frame-Options'
+              value: 'SAMEORIGIN'
+            append: false
+          - header:
+              key: 'X-Content-Type-Options'
+              value: 'nosniff'
+            append: false
+          - header:
+              key: 'Referrer-Policy'
+              value: 'origin'
+            append: false
+          - header:
+              key: 'Access-Control-Request-Method'
+              value: '*'
+            append: false
+          - header:
+              key: 'Access-Control-Allow-Origin'
+              value: "https://test.se.accounts.teliacompany.com"
+            append: false
+          - header:
+              key: 'Access-Control-Allow-Credentials'
+              value: 'true'
+            append: false
+---
+# Source: knative/templates/knative-ingress-gateway.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  labels:
+  name: knative-ciam-ingress-gateway
+  namespace: knative-serving
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        name: https
+        number: 443
+        protocol: HTTPS
+      hosts:
+        - '*'
+        - '*.dev.se.identity.teliacompany.net'
+        - dev.se.identity.teliacompany.net
+      tls:
+        credentialName: tls-cert
+        maxProtocolVersion: TLSV1_3
+        minProtocolVersion: TLSV1_2
+        mode: SIMPLE
+---
+# Source: knative/templates/istio-virtualservice.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: service-routes
+spec:
+  gateways:
+    - knative-serving/knative-ciam-ingress-gateway
+  hosts:
+    - dev.se.identity.teliacompany.net
+    - 10.30.178.96
+  http:
+    - name: accounts-services-route
+      match:
+        - uri:
+            prefix: "/accounts"
+      rewrite:
+        authority: dis-accounts-services.default.dev.se.identity.teliacompany.net
+      route:
+        - destination:
+            host: dis-accounts-services.default.svc.cluster.local
+            port:
+              number: 80
+      corsPolicy:
+        allowOrigins:
+          - exact: "*"
+        allowMethods:
+          - POST
+          - GET
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowCredentials: true
+        allowHeaders:
+          - Content-Type
+          - Authorization
+
+    - name: hello-service-route
+      match:
+        - uri:
+            prefix: "/test"
+      rewrite:
+        authority: hello.default.dev.se.identity.teliacompany.net
+      route:
+        - destination:
+            host: hello.default.svc.cluster.local
+            port:
+              number: 80
+
+    - name: oidc-service-route
+      match:
+        - uri:
+            prefix: "/oidc"
+      rewrite:
+        authority: dis-oidc-provider.default.dev.se.identity.teliacompany.net
+      route:
+        - destination:
+            host: dis-oidc-provider.default.svc.cluster.local
+            port:
+              number: 80
+      corsPolicy:
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+      headers:
+        request:
+          add:
+            X-Forwarded-Host: "dev.se.identity.teliacompany.com"
+
+    - name: account-service-route
+      match:
+        - uri:
+            prefix: "/api/account"
+      rewrite:
+        authority: dis-account-service.default.dev.se.identity.teliacompany.net
+      route:
+        - destination:
+            host: dis-account-service.default.svc.cluster.local
+            port:
+              number: 80
+
+    - name: identity-store-service-route
+      match:
+        - uri:
+            prefix: "/api/ids/"
+      rewrite:
+        authority: dis-identity-store.default.dev.se.identity.teliacompany.net
+      route:
+        - destination:
+            host: dis-identity-store.default.svc.cluster.local
+            port:
+              number: 80
+
+    - name: saml-service-route
+      match:
+        - uri:
+            prefix: "/saml"
+      rewrite:
+        authority: dis-saml-provider.default.dev.se.identity.teliacompany.net
+      route:
+        - destination:
+            host: dis-saml-provider.default.svc.cluster.local
+            port:
+              number: 80
+      corsPolicy:
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+      headers:
+        request:
+          add:
+            X-Forwarded-Host: "dev.se.identity.teliacompany.com"
+
+    - name: challenge-service-route
+      match:
+        - uri:
+            prefix: "/api/challenge/"
+      rewrite:
+        authority: dis-challenge-service.default.dev.se.identity.teliacompany.net
+      route:
+        - destination:
+            host: dis-challenge-service.default.svc.cluster.local
+            port:
+              number: 80
+
+    - name: dis-cluster-healthcheck
+      match:
+        - uri:
+            prefix: "/cluster-healthcheck"
+      rewrite:
+        authority: dis-cluster-healthcheck.default.dev.se.identity.teliacompany.net
+      route:
+        - destination:
+            host: dis-cluster-healthcheck.default.svc.cluster.local
+            port:
+              number: 80

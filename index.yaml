@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  infrastructure:
+  - apiVersion: v1
+    appVersion: 1.0.0
+    created: "2024-04-04T19:18:43.2967755+02:00"
+    description: A Helm chart for Kubernetes
+    digest: 39dd2eefba0b26fae640e9c71bb4a91eedcd32ee18fa7e2217f0e19ced20e3f4
+    name: infrastructure
+    type: application
+    urls:
+    - https://adamsipo.github.io/helm/infrastructure-1.0.0.tgz
+    version: 1.0.0
+generated: "2024-04-04T19:18:43.296525966+02:00"
